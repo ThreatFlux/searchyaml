@@ -1,0 +1,110 @@
+name: Build SearchYAML
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Needed for creating tags and releases
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Fetch all history for version tracking
+
+      - name: Generate version number
+        id: version
+        run: |
+          # Get today's date in YYYY.MM.DD format
+          DATE=$(date +'%Y.%m.%d')
+          
+          # Get all tags for today
+          TODAY_TAGS=$(git tag -l "$DATE.*" | sort -V)
+          
+          # If we have tags today, increment the last one
+          if [ ! -z "$TODAY_TAGS" ]; then
+            LAST_TAG=$(echo "$TODAY_TAGS" | tail -n1)
+            COUNTER=$((${LAST_TAG##*.} + 1))
+          else
+            COUNTER=1
+          fi
+          
+          # Create new version number
+          VERSION="$DATE.$COUNTER"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version will be: $VERSION"
+
+      - name: Create and push tag
+        if: github.event_name != 'pull_request'
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git tag -a ${{ steps.version.outputs.version }} -m "Release ${{ steps.version.outputs.version }}"
+          git push origin ${{ steps.version.outputs.version }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}
+          build-args: |
+            VERSION=${{ steps.version.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build artifacts
+        id: build
+        run: |
+          docker run --rm -v ${{ github.workspace }}/artifacts:/artifacts \
+            ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: searchYAML-binaries
+          path: artifacts/*
+          retention-days: 7
+
+      - name: Create Release
+        if: github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          files: artifacts/*
+          generate_release_notes: true
+          body: |
+            SearchYAML Release ${{ steps.version.outputs.version }}
+            
+            ### Artifacts
+            The following binaries are available:
+            ```
+            ${{ steps.build.outputs.artifacts }}
+            ```
+            
+            Each binary comes with its SHA256 checksum and compressed archive.
+            
+            ### Automatic Release
+            This is an automatically generated release for commit: ${{ github.sha }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

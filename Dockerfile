@@ -1,37 +1,89 @@
-# syntax=docker/dockerfile:1
+# Use a multi-stage build for efficiency
+FROM golang:1.23-alpine AS builder
 
-# Stage 1: Build the binaries
-FROM golang:1.23 as builder
+# Install build dependencies
+RUN apk add --no-cache \
+    git \
+    make \
+    bash \
+    tar \
+    curl \
+    gcc \
+    musl-dev
 
 # Set the working directory
-WORKDIR /app
+WORKDIR /build
 
-# Copy the go.mod and go.sum files
-COPY go.mod go.sum ./
+# Copy build script and make it executable
+COPY build.sh .
+RUN chmod +x build.sh
 
-# Download dependencies
-RUN go mod download
+# Create directory for output
+RUN mkdir -p /output
+
+# Build argument for version
+ARG VERSION=dev
+ENV VERSION=${VERSION}
 
 # Copy the source code
 COPY . .
 
-# Build the binaries for different architectures and OS
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /out/linux_amd64/searchYAML ./...
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o /out/linux_arm64/searchYAML ./...
-RUN CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o /out/darwin_amd64/searchYAML ./...
-RUN CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o /out/darwin_arm64/searchYAML ./...
+# Run the build script
+RUN ./build.sh /output
 
-# Stage 2: Create a minimal image with the binaries
+# Use a minimal alpine image for the final stage
 FROM alpine:latest
 
-# Set the working directory
+# Install necessary runtime tools
+RUN apk add --no-cache \
+    bash \
+    tar \
+    ca-certificates
+
+# Create a non-root user
+RUN adduser -D -h /app appuser
+
+# Create necessary directories
+RUN mkdir -p /app/build && \
+    chown -R appuser:appuser /app
+
+# Switch to non-root user
+USER appuser
 WORKDIR /app
 
-# Copy the binaries from the builder stage
-COPY --from=builder /out/linux_amd64/searchYAML /app/linux_amd64/searchYAML
-COPY --from=builder /out/linux_arm64/searchYAML /app/linux_arm64/searchYAML
-COPY --from=builder /out/darwin_amd64/searchYAML /app/darwin_amd64/searchYAML
-COPY --from=builder /out/darwin_arm64/searchYAML /app/darwin_arm64/searchYAML
+# Copy artifacts from builder
+COPY --from=builder --chown=appuser:appuser /output /app/build
 
-# Set the entrypoint to a shell to explore the binaries
-ENTRYPOINT ["/bin/sh"]
+# Add the entrypoint script
+COPY --chown=appuser:appuser <<EOF /app/entrypoint.sh
+#!/bin/bash
+set -e
+
+# Function to create GitHub Actions output commands
+set_output() {
+    echo "::set-output name=$1::$2"
+}
+
+# Get the version
+VERSION=\$(cat /app/build/version.txt)
+set_output "version" "\$VERSION"
+
+# Create a list of artifacts
+ARTIFACTS=\$(ls -1 /app/build/* | tr '\n' ' ')
+set_output "artifacts" "\$ARTIFACTS"
+
+# If we're running in GitHub Actions, move artifacts to the specified location
+if [ -n "\${GITHUB_WORKSPACE}" ]; then
+    mkdir -p \${GITHUB_WORKSPACE}/artifacts
+    cp -r /app/build/* \${GITHUB_WORKSPACE}/artifacts/
+fi
+
+# Print build info
+echo "Build completed successfully!"
+echo "Version: \$VERSION"
+echo "Artifacts: \$ARTIFACTS"
+EOF
+
+RUN chmod +x /app/entrypoint.sh
+
+ENTRYPOINT ["/app/entrypoint.sh"]
