@@ -75,7 +75,7 @@ jobs:
         id: build
         run: |
           docker run --rm -v ${{ github.workspace }}/artifacts:/artifacts \
-            ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}
+            ghcr.io/threatflux/searchyaml:${{ steps.version.outputs.version }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
