@@ -30,12 +30,12 @@ SearchYAML is a high-performance, memory-mapped key-value store with built-in se
 
 ### Installation
 ```bash
-go get github.com/ThreatFlux/searchYAML
+go get github.com/threatflux/searchYAML
 ```
 
 ### Basic Usage
 ```go
-import "github.com/ThreatFlux/searchYAML/storage"
+import "github.com/threatflux/searchYAML/storage"
 
 // Create a new store
 opts := storage.DefaultOptions
