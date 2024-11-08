@@ -1,0 +1,49 @@
+# Start from a minimal alpine base
+FROM alpine:3.19
+
+# Install required runtime dependencies
+RUN apk add --no-cache \
+    ca-certificates \
+    tzdata \
+    && rm -rf /var/cache/apk/*
+
+# Create a non-root user
+RUN addgroup -S searchyaml && \
+    adduser -S -G searchyaml searchyaml
+
+# Create necessary directories
+RUN mkdir -p /app/data /app/config && \
+    chown -R searchyaml:searchyaml /app
+
+# Set working directory
+WORKDIR /app
+
+# Copy the built binary from your local build directory
+# Note: This assumes you've already built the binary
+COPY build_searchYAML/searchYAML-*-linux-amd64 /app/searchYAML
+
+# Make the binary executable
+RUN chmod +x /app/searchYAML && \
+    chown searchyaml:searchyaml /app/searchYAML
+
+# Switch to non-root user
+USER searchyaml
+
+# Expose the default port
+EXPOSE 8080
+
+# Set default environment variables
+ENV DATA_DIR=/app/data \
+    CONFIG_DIR=/app/config \
+    PORT=8080
+
+# Create a healthcheck
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:${PORT}/admin/stats || exit 1
+
+# Create volumes for persistence
+VOLUME ["/app/data", "/app/config"]
+
+# Run the binary
+ENTRYPOINT ["/app/searchYAML"]
+CMD ["--port=:8080", "--data=/app/data/data.yaml"]

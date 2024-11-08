@@ -1,0 +1,115 @@
+name: Build and Publish Docker Runtime
+
+on:
+  # Run after the main build workflow completes
+  workflow_run:
+    workflows: ["Build SearchYAML"]
+    types:
+      - completed
+    branches: [main]
+
+jobs:
+  docker-build:
+    # Only run if the previous workflow succeeded
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      actions: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Download build artifacts
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          workflow: build.yml
+          workflow_conclusion: success
+          name: searchYAML-binaries
+          path: build_searchYAML
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Get version
+        id: get_version
+        run: |
+          VERSION=$(cat build_searchYAML/version.txt)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      # Log in to multiple registries for wider distribution
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Build for multiple platforms
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      # Build and push Docker image
+      - name: Build and push
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: Dockerfile.runtime
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:runtime-${{ steps.get_version.outputs.version }}
+            ghcr.io/${{ github.repository }}:runtime-latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/searchyaml:${{ steps.get_version.outputs.version }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/searchyaml:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.version=${{ steps.get_version.outputs.version }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created=${{ steps.get_version.outputs.version }}
+
+      # Test the built image
+      - name: Test image
+        run: |
+          docker pull ghcr.io/${{ github.repository }}:runtime-${{ steps.get_version.outputs.version }}
+          docker run -d --name test-searchyaml -p 8080:8080 ghcr.io/${{ github.repository }}:runtime-${{ steps.get_version.outputs.version }}
+          sleep 10
+          docker ps
+          curl -f http://localhost:8080/admin/stats || (docker logs test-searchyaml && exit 1)
+          docker rm -f test-searchyaml
+
+      # Update Docker Hub description
+      - name: Update Docker Hub description
+        if: github.event_name != 'pull_request'
+        uses: peter-evans/dockerhub-description@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+          repository: ${{ secrets.DOCKERHUB_USERNAME }}/searchyaml
+          short-description: "SearchYAML - High-performance YAML-based search engine"
+          readme-filepath: ./README.md
+
+      # Notify on success/failure
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "::error::Docker build and publish failed. Check the logs for details."
+
+      - name: Notify on success
+        if: success()
+        run: |
+          echo "::notice::Docker images successfully built and published:"
+          echo "  - ghcr.io/${{ github.repository }}:runtime-${{ steps.get_version.outputs.version }}"
+          echo "  - ${{ secrets.DOCKERHUB_USERNAME }}/searchyaml:${{ steps.get_version.outputs.version }}"

@@ -3,8 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/ThreatFlux/searchYAML/storage"
 	"github.com/gin-gonic/gin"
+	"github.com/threatflux/searchYAML/storage"
 	"log"
 	"time"
 )

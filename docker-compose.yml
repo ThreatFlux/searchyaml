@@ -1,0 +1,40 @@
+services:
+  searchyaml:
+    build:
+      context: .
+      dockerfile: Dockerfile.runtime
+    container_name: searchyaml
+    ports:
+      - "8080:8080"
+    volumes:
+      - searchyaml-data:/app/data
+      - searchyaml-config:/app/config
+    environment:
+      - PORT=8080
+      - DEBUG=false
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/admin/stats"]
+      interval: 30s
+      timeout: 30s
+      retries: 3
+      start_period: 5s
+    networks:
+      - searchyaml-net
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 256M
+
+volumes:
+  searchyaml-data:
+    name: searchyaml-data
+  searchyaml-config:
+    name: searchyaml-config
+
+networks:
+  searchyaml-net:
+    name: searchyaml-net
+    driver: bridge
