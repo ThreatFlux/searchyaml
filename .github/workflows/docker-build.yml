@@ -111,5 +111,5 @@ jobs:
         if: success()
         run: |
           echo "::notice::Docker images successfully built and published:"
-          echo "  - ghcr.io/${{ github.repository }}:runtime-${{ steps.get_version.outputs.version }}"
+          echo "  - ghcr.io/threatflux/searchyaml:runtime-${{ steps.get_version.outputs.version }}"
           echo "  - ${{ secrets.DOCKERHUB_USERNAME }}/searchyaml:${{ steps.get_version.outputs.version }}"

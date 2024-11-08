@@ -74,7 +74,7 @@ jobs:
       - name: Build artifacts
         id: build
         run: |
-          docker run --rm -v ${{ github.workspace }}/artifacts:/artifacts \
+          docker run --rm -v threatflux/searchyaml/artifacts:/artifacts \
             ghcr.io/threatflux/searchyaml:${{ steps.version.outputs.version }}
 
       - name: Upload artifacts
