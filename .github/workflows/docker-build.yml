@@ -68,14 +68,14 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}:runtime-${{ steps.get_version.outputs.version }}
-            ghcr.io/${{ github.repository }}:runtime-latest
+            ghcr.io/threatflux/searchyaml:runtime-${{ steps.get_version.outputs.version }}
+            ghcr.io/threatflux/searchyaml:runtime-latest
             ${{ secrets.DOCKERHUB_USERNAME }}/searchyaml:${{ steps.get_version.outputs.version }}
             ${{ secrets.DOCKERHUB_USERNAME }}/searchyaml:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
           labels: |
-            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.source=${{ github.server_url }}/threatflux/searchyaml
             org.opencontainers.image.version=${{ steps.get_version.outputs.version }}
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.created=${{ steps.get_version.outputs.version }}
@@ -83,8 +83,8 @@ jobs:
       # Test the built image
       - name: Test image
         run: |
-          docker pull ghcr.io/${{ github.repository }}:runtime-${{ steps.get_version.outputs.version }}
-          docker run -d --name test-searchyaml -p 8080:8080 ghcr.io/${{ github.repository }}:runtime-${{ steps.get_version.outputs.version }}
+          docker pull ghcr.io/threatflux/searchyaml:runtime-${{ steps.get_version.outputs.version }}
+          docker run -d --name test-searchyaml -p 8080:8080 ghcr.io/threatflux/searchyaml:runtime-${{ steps.get_version.outputs.version }}
           sleep 10
           docker ps
           curl -f http://localhost:8080/admin/stats || (docker logs test-searchyaml && exit 1)
