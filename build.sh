@@ -3,7 +3,7 @@
 # Build script for SearchYAML
 
 # Default build directory
-BUILD_DIR=${1:-"build_searchYAML"}
+BUILD_DIR=${1:-"build_searchyaml"}
 
 # Version from git tag, fallback to dev version if no tag exists
 VERSION=$(git describe --tags 2>/dev/null || echo "dev-$(git rev-parse --short HEAD)")
@@ -42,7 +42,7 @@ log_info "Output directory: $BUILD_DIR"
 build() {
     local OS=$1
     local ARCH=$2
-    local OUTPUT="$BUILD_DIR/searchYAML-$VERSION-$OS-$ARCH"
+    local OUTPUT="$BUILD_DIR/searchyaml-$VERSION-$OS-$ARCH"
 
     if [ "$OS" = "windows" ]; then
         OUTPUT="$OUTPUT.exe"
@@ -104,7 +104,7 @@ ls -lh "$BUILD_DIR"
 if command -v tar &> /dev/null; then
     log_info "Creating archives..."
     cd "$BUILD_DIR" || exit
-    for file in searchYAML-*; do
+    for file in searchyaml-*; do
         if [ ! -f "$file" ] || [[ "$file" == *.sha256 ]]; then
             continue
         fi

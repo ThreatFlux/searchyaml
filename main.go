@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/gin-gonic/gin"
-	"github.com/threatflux/searchYAML/storage"
+	"github.com/threatflux/searchyaml/storage"
 	"log"
 	"time"
 )

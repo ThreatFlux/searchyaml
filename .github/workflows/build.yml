@@ -80,7 +80,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: searchYAML-binaries
+          name: searchyaml-binaries
           path: artifacts/*
           retention-days: 7
 

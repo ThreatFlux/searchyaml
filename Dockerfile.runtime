@@ -20,11 +20,11 @@ WORKDIR /app
 
 # Copy the built binary from your local build directory
 # Note: This assumes you've already built the binary
-COPY build_searchYAML/searchYAML-*-linux-amd64 /app/searchYAML
+COPY build_searchyaml/searchyaml-*-linux-amd64 /app/searchyaml
 
 # Make the binary executable
-RUN chmod +x /app/searchYAML && \
-    chown searchyaml:searchyaml /app/searchYAML
+RUN chmod +x /app/searchyaml && \
+    chown searchyaml:searchyaml /app/searchyaml
 
 # Switch to non-root user
 USER searchyaml
@@ -45,5 +45,5 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
 VOLUME ["/app/data", "/app/config"]
 
 # Run the binary
-ENTRYPOINT ["/app/searchYAML"]
+ENTRYPOINT ["/app/searchyaml"]
 CMD ["--port=:8080", "--data=/app/data/data.yaml"]

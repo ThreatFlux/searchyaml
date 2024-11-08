@@ -27,8 +27,8 @@ jobs:
         with:
           workflow: build.yml
           workflow_conclusion: success
-          name: searchYAML-binaries
-          path: build_searchYAML
+          name: searchyaml-binaries
+          path: build_searchyaml
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
@@ -36,7 +36,7 @@ jobs:
       - name: Get version
         id: get_version
         run: |
-          VERSION=$(cat build_searchYAML/version.txt)
+          VERSION=$(cat build_searchyaml/version.txt)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Version: $VERSION"
 

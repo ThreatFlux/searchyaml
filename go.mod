@@ -1,4 +1,4 @@
-module github.com/threatflux/searchYAML
+module github.com/threatflux/searchyaml
 
 go 1.23.0
 
